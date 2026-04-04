@@ -8,29 +8,31 @@ data:
   sampling_rate: 256              # CHB-MIT recorded at 256 Hz — do not change
   num_channels:  23               # Standard CHB-MIT channel count
   window_size_sec: 5              # 5s × 256Hz = 1280 samples per window
-  stride_sec: 2.5                 # 2.5 → 50% overlap  |  5.0 → non-overlapping
+  stride_sec: 5.0                 # 5.0 → non-overlapping (less disk space)
+                                  # 2.5 → 50% overlap (more data, better model, 2x disk)
   seizure_overlap_threshold: 0.5  # Fraction of window that must overlap a seizure to label it 1
 
-  # ── Patient-level split (scientifically correct — no data leakage) ──────────
-  # Train on patients 1-16, validate on 17-19, test on 20-24.
-  # The model is evaluated on patients it has NEVER seen during training.
-  # Change n_train_patients for learning curve experiments (see scripts/learning_curve.py).
+  # ── Patient-level split ───────────────────────────────────────────────────
+  # Train/val/test patients are completely separate — no data leakage.
+  # Change n_*_patients to control how many from each group to use.
+  # For a pipeline test use 2,1,1. For full training use 16,3,5.
   train_patients: ["chb01","chb02","chb03","chb04","chb05","chb06","chb07","chb08",
                    "chb09","chb10","chb11","chb12","chb13","chb14","chb15","chb16"]
   val_patients:   ["chb17","chb18","chb19"]
   test_patients:  ["chb20","chb21","chb22","chb23","chb24"]
-  n_train_patients: 16            # Use first N train_patients. Change for learning curve runs.
-                                  # e.g. 4, 8, 12, 16
+  n_train_patients: 2             # Use first N of train_patients. Pipeline test: 2, Full: 16
+  n_val_patients:   1             # Use first N of val_patients.   Pipeline test: 1, Full: 3
+  n_test_patients:  1             # Use first N of test_patients.  Pipeline test: 1, Full: 5
 
 training:
   batch_size: 64                  # Lower to 32 if CUDA out of memory
-  epochs: 50                      # Start with 30, increase if val F1 is still rising
+  epochs: 10                      # Start with 30, increase if val F1 is still rising
   learning_rate: 0.001            # Try 3e-4 or 5e-4 if loss stalls early
   weight_decay: 0.0001            # L2 regularization — increase to 1e-3 if overfitting
   early_stopping_patience: 10     # Stop if val F1 doesn't improve for N epochs
   monitor_metric: "f1"            # "f1" or "recall" — use "recall" to maximize seizure catch rate
   grad_clip: 1.0                  # Critical for LSTM/GRU — prevents exploding gradients
-  num_workers: 4                  # Match your CPU core count
+  num_workers: 0                  # change to 0 if you have problem running train.py
   mixed_precision: true           # Faster training on NVIDIA GPU — set false if NaN loss
 
 cnn_baseline:
