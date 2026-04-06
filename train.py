@@ -21,6 +21,7 @@ Full training:
 """
 
 import os
+import argparse
 import yaml
 import torch
 import numpy as np
@@ -59,7 +60,7 @@ def compute_pos_weight(train_loader, device):
     return torch.tensor([weight], dtype=torch.float32).to(device)
 
 
-def main():
+def main(selected_model: str = "all"):
     # ── Config ────────────────────────────────────────────────────────────────
     with open("configs/config.yaml", "r") as f:
         config = yaml.safe_load(f)
@@ -91,89 +92,104 @@ def main():
     # ══════════════════════════════════════════════════════════════════════════
     # Model 1: CNN Baseline (ablation — no temporal modeling)
     # ══════════════════════════════════════════════════════════════════════════
-    print("\n" + "="*60)
-    print("MODEL 1: CNN Baseline (Ablation — No Temporal Modeling)")
-    print("="*60)
+    if selected_model in ("all", "cnn_baseline"):
+        print("\n" + "="*60)
+        print("MODEL 1: CNN Baseline (Ablation — No Temporal Modeling)")
+        print("="*60)
 
-    cnn_cfg = config["cnn_baseline"]
-    cnn = CNNBaseline(
-        num_channels=num_channels,
-        window_samples=window_samples,
-        out_channels=cnn_cfg["out_channels"],
-        kernel_size=cnn_cfg["kernel_size"],
-        dropout=cnn_cfg["dropout"],
-    )
-    cnn_trainer = Trainer(cnn, train_loader, val_loader, config, "cnn_baseline", device)
-    cnn_trainer.criterion.pos_weight = pos_weight
-    cnn_trainer.train()
+        cnn_cfg = config["cnn_baseline"]
+        cnn = CNNBaseline(
+            num_channels=num_channels,
+            window_samples=window_samples,
+            out_channels=cnn_cfg["out_channels"],
+            kernel_size=cnn_cfg["kernel_size"],
+            dropout=cnn_cfg["dropout"],
+        )
+        cnn_trainer = Trainer(cnn, train_loader, val_loader, config, "cnn_baseline", device)
+        cnn_trainer.criterion.pos_weight = pos_weight
+        cnn_trainer.train()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Model 2: CNN + LSTM (primary hypothesis model)
     # ══════════════════════════════════════════════════════════════════════════
-    print("\n" + "="*60)
-    print("MODEL 2: CNN + LSTM (Primary Model)")
-    print("="*60)
+    if selected_model in ("all", "cnn_lstm"):
+        print("\n" + "="*60)
+        print("MODEL 2: CNN + LSTM (Primary Model)")
+        print("="*60)
 
-    lstm_cfg = config["cnn_lstm"]
-    cnn_lstm = CNNLSTM(
-        num_channels=num_channels,
-        window_samples=window_samples,
-        out_channels=lstm_cfg["out_channels"],
-        kernel_size=lstm_cfg["kernel_size"],
-        lstm_hidden=lstm_cfg["lstm_hidden"],
-        lstm_layers=lstm_cfg["lstm_layers"],
-        bidirectional=lstm_cfg["bidirectional"],
-        dropout=lstm_cfg["dropout"],
-    )
-    lstm_trainer = Trainer(cnn_lstm, train_loader, val_loader, config, "cnn_lstm", device)
-    lstm_trainer.criterion.pos_weight = pos_weight
-    lstm_trainer.train()
+        lstm_cfg = config["cnn_lstm"]
+        cnn_lstm = CNNLSTM(
+            num_channels=num_channels,
+            window_samples=window_samples,
+            out_channels=lstm_cfg["out_channels"],
+            kernel_size=lstm_cfg["kernel_size"],
+            lstm_hidden=lstm_cfg["lstm_hidden"],
+            lstm_layers=lstm_cfg["lstm_layers"],
+            bidirectional=lstm_cfg["bidirectional"],
+            dropout=lstm_cfg["dropout"],
+        )
+        lstm_trainer = Trainer(cnn_lstm, train_loader, val_loader, config, "cnn_lstm", device)
+        lstm_trainer.criterion.pos_weight = pos_weight
+        lstm_trainer.train()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Model 3: CNN + GRU (faster LSTM variant)
     # ══════════════════════════════════════════════════════════════════════════
-    print("\n" + "="*60)
-    print("MODEL 3: CNN + GRU (Faster LSTM Variant)")
-    print("="*60)
+    if selected_model in ("all", "cnn_gru"):
+        print("\n" + "="*60)
+        print("MODEL 3: CNN + GRU (Faster LSTM Variant)")
+        print("="*60)
 
-    gru_cfg = config["cnn_gru"]
-    cnn_gru = CNNGRU(
-        num_channels=num_channels,
-        window_samples=window_samples,
-        out_channels=gru_cfg["out_channels"],
-        kernel_size=gru_cfg["kernel_size"],
-        gru_hidden=gru_cfg["gru_hidden"],
-        gru_layers=gru_cfg["gru_layers"],
-        bidirectional=gru_cfg["bidirectional"],
-        dropout=gru_cfg["dropout"],
-    )
-    gru_trainer = Trainer(cnn_gru, train_loader, val_loader, config, "cnn_gru", device)
-    gru_trainer.criterion.pos_weight = pos_weight
-    gru_trainer.train()
+        gru_cfg = config["cnn_gru"]
+        cnn_gru = CNNGRU(
+            num_channels=num_channels,
+            window_samples=window_samples,
+            out_channels=gru_cfg["out_channels"],
+            kernel_size=gru_cfg["kernel_size"],
+            gru_hidden=gru_cfg["gru_hidden"],
+            gru_layers=gru_cfg["gru_layers"],
+            bidirectional=gru_cfg["bidirectional"],
+            dropout=gru_cfg["dropout"],
+        )
+        gru_trainer = Trainer(cnn_gru, train_loader, val_loader, config, "cnn_gru", device)
+        gru_trainer.criterion.pos_weight = pos_weight
+        gru_trainer.train()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Model 4: TCN (parallel dilated convolutions)
     # ══════════════════════════════════════════════════════════════════════════
-    print("\n" + "="*60)
-    print("MODEL 4: TCN (Temporal Convolutional Network)")
-    print("="*60)
+    if selected_model in ("all", "tcn"):
+        print("\n" + "="*60)
+        print("MODEL 4: TCN (Temporal Convolutional Network)")
+        print("="*60)
 
-    tcn_cfg = config["tcn"]
-    tcn = TCNModel(
-        num_channels=num_channels,
-        window_samples=window_samples,
-        num_block_channels=tcn_cfg["num_channels"],
-        kernel_size=tcn_cfg["kernel_size"],
-        dropout=tcn_cfg["dropout"],
-    )
-    tcn_trainer = Trainer(tcn, train_loader, val_loader, config, "tcn", device)
-    tcn_trainer.criterion.pos_weight = pos_weight
-    tcn_trainer.train()
+        tcn_cfg = config["tcn"]
+        tcn = TCNModel(
+            num_channels=num_channels,
+            window_samples=window_samples,
+            num_block_channels=tcn_cfg["num_channels"],
+            kernel_size=tcn_cfg["kernel_size"],
+            dropout=tcn_cfg["dropout"],
+        )
+        tcn_trainer = Trainer(tcn, train_loader, val_loader, config, "tcn", device)
+        tcn_trainer.criterion.pos_weight = pos_weight
+        tcn_trainer.train()
 
     print("\n" + "="*60)
-    print("All models trained. Run evaluate.py for full evaluation and charts.")
+    if selected_model == "all":
+        print("All models trained. Run evaluate.py for full evaluation and charts.")
+    else:
+        print(f"{selected_model} trained. Run evaluate.py --model {selected_model} to evaluate it.")
     print("="*60)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        default="all",
+        choices=["all", "cnn_baseline", "cnn_lstm", "cnn_gru", "tcn"],
+        help="Train all models or only one specific model.",
+    )
+    args = parser.parse_args()
+    main(args.model)

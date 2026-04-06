@@ -19,6 +19,7 @@ Lower threshold if recall is too low:
 """
 
 import os
+import argparse
 import yaml
 import torch
 import numpy as np
@@ -52,7 +53,7 @@ def load_model(model_class, checkpoint_path: str, device, **kwargs):
     return model
 
 
-def main():
+def main(selected_model: str = "all"):
     with open("configs/config.yaml", "r") as f:
         config = yaml.safe_load(f)
 
@@ -82,34 +83,38 @@ def main():
     gru_cfg  = config["cnn_gru"]
     tcn_cfg  = config["tcn"]
 
-    models = {
-        "cnn_baseline": load_model(
+    models = {}
+
+    if selected_model in ("all", "cnn_baseline"):
+        models["cnn_baseline"] = load_model(
             CNNBaseline, os.path.join(ckpt_dir, "cnn_baseline_best.pt"), device,
             num_channels=num_channels, window_samples=window_samples,
             out_channels=cnn_cfg["out_channels"], kernel_size=cnn_cfg["kernel_size"],
             dropout=cnn_cfg["dropout"],
-        ),
-        "cnn_lstm": load_model(
+        )
+    if selected_model in ("all", "cnn_lstm"):
+        models["cnn_lstm"] = load_model(
             CNNLSTM, os.path.join(ckpt_dir, "cnn_lstm_best.pt"), device,
             num_channels=num_channels, window_samples=window_samples,
             out_channels=lstm_cfg["out_channels"], kernel_size=lstm_cfg["kernel_size"],
             lstm_hidden=lstm_cfg["lstm_hidden"], lstm_layers=lstm_cfg["lstm_layers"],
             bidirectional=lstm_cfg["bidirectional"], dropout=lstm_cfg["dropout"],
-        ),
-        "cnn_gru": load_model(
+        )
+    if selected_model in ("all", "cnn_gru"):
+        models["cnn_gru"] = load_model(
             CNNGRU, os.path.join(ckpt_dir, "cnn_gru_best.pt"), device,
             num_channels=num_channels, window_samples=window_samples,
             out_channels=gru_cfg["out_channels"], kernel_size=gru_cfg["kernel_size"],
             gru_hidden=gru_cfg["gru_hidden"], gru_layers=gru_cfg["gru_layers"],
             bidirectional=gru_cfg["bidirectional"], dropout=gru_cfg["dropout"],
-        ),
-        "tcn": load_model(
+        )
+    if selected_model in ("all", "tcn"):
+        models["tcn"] = load_model(
             TCNModel, os.path.join(ckpt_dir, "tcn_best.pt"), device,
             num_channels=num_channels, window_samples=window_samples,
             num_block_channels=tcn_cfg["num_channels"], kernel_size=tcn_cfg["kernel_size"],
             dropout=tcn_cfg["dropout"],
-        ),
-    }
+        )
 
     # ══════════════════════════════════════════════════════════════════════════
     # Step 1: Training curves + grad norm history (from log CSVs)
@@ -155,8 +160,9 @@ def main():
     # ══════════════════════════════════════════════════════════════════════════
     # Step 3: Ablation comparison chart
     # ══════════════════════════════════════════════════════════════════════════
-    print("\nGenerating ablation comparison chart...")
-    plot_model_comparison(all_results, results_dir)
+    if len(all_results) > 1:
+        print("\nGenerating ablation comparison chart...")
+        plot_model_comparison(all_results, results_dir)
 
     # ══════════════════════════════════════════════════════════════════════════
     # Step 4: Summary table printed to console
@@ -188,4 +194,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        default="all",
+        choices=["all", "cnn_baseline", "cnn_lstm", "cnn_gru", "tcn"],
+        help="Evaluate all models or only one specific model.",
+    )
+    args = parser.parse_args()
+    main(args.model)
