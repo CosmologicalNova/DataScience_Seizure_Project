@@ -26,7 +26,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from sklearn.metrics import f1_score, recall_score, roc_auc_score
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
@@ -81,7 +81,7 @@ class Trainer:
         # Automatic mixed precision: float16 where safe, float32 elsewhere.
         # Speeds up training ~1.5-2x on NVIDIA GPU. Set mixed_precision: false if NaN loss.
         self.use_amp = t_cfg.get("mixed_precision", True) and device.type == "cuda"
-        self.scaler  = GradScaler(enabled=self.use_amp)
+        self.scaler  = GradScaler("cuda", enabled=self.use_amp)
 
         # ── Tracking ──────────────────────────────────────────────────────────
         self.grad_clip      = t_cfg.get("grad_clip", 1.0)
@@ -120,7 +120,7 @@ class Trainer:
 
             self.optimizer.zero_grad(set_to_none=True)
 
-            with autocast(enabled=self.use_amp):
+            with autocast("cuda", enabled=self.use_amp):
                 logits = self.model(images).squeeze(1)
                 loss   = self.criterion(logits, labels)
 
@@ -160,7 +160,7 @@ class Trainer:
                 images = images.to(self.device, non_blocking=True)
                 labels = labels.to(self.device, non_blocking=True)
 
-                with autocast(enabled=self.use_amp):
+                with autocast("cuda", enabled=self.use_amp):
                     logits = self.model(images).squeeze(1)
                     loss   = self.criterion(logits, labels)
 
