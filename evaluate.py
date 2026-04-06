@@ -37,6 +37,21 @@ from src.evaluation.visualize import (plot_training_curves, plot_grad_norm_histo
                                        plot_model_comparison)
 
 
+def get_device():
+    """
+    Cross-platform device selection:
+    - CUDA for Windows/Linux with NVIDIA
+    - MPS for Apple Silicon Mac
+    - CPU otherwise
+    """
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        return torch.device("mps")
+    else:
+        return torch.device("cpu")
+
+
 def load_model(model_class, checkpoint_path: str, device, **kwargs):
     """Loads a trained model from checkpoint. Raises clear error if checkpoint missing."""
     if not os.path.exists(checkpoint_path):
@@ -57,7 +72,8 @@ def main(selected_model: str = "all"):
     with open("configs/config.yaml", "r") as f:
         config = yaml.safe_load(f)
 
-    device      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device      = get_device()
+    print(f"Using device: {device}")
     results_dir = config["paths"]["results"]
     logs_dir    = config["paths"]["logs"]
     ckpt_dir    = config["paths"]["checkpoints"]
