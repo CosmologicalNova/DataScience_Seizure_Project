@@ -52,6 +52,18 @@ def get_device():
         return torch.device("cpu")
 
 
+def get_model_device(model_name: str, base_device: torch.device) -> torch.device:
+    """
+    Match the training-time device policy:
+    - CUDA for NVIDIA
+    - MPS for Apple Silicon where stable
+    - CPU fallback for recurrent models on MPS
+    """
+    if base_device.type == "mps" and model_name in {"cnn_lstm", "cnn_gru"}:
+        return torch.device("cpu")
+    return base_device
+
+
 def load_model(model_class, checkpoint_path: str, device, **kwargs):
     """Loads a trained model from checkpoint. Raises clear error if checkpoint missing."""
     if not os.path.exists(checkpoint_path):
@@ -72,8 +84,8 @@ def main(selected_model: str = "all"):
     with open("configs/config.yaml", "r") as f:
         config = yaml.safe_load(f)
 
-    device      = get_device()
-    print(f"Using device: {device}")
+    base_device = get_device()
+    print(f"Using base device: {base_device}")
     results_dir = config["paths"]["results"]
     logs_dir    = config["paths"]["logs"]
     ckpt_dir    = config["paths"]["checkpoints"]
@@ -102,31 +114,35 @@ def main(selected_model: str = "all"):
     models = {}
 
     if selected_model in ("all", "cnn_baseline"):
+        model_device = get_model_device("cnn_baseline", base_device)
         models["cnn_baseline"] = load_model(
-            CNNBaseline, os.path.join(ckpt_dir, "cnn_baseline_best.pt"), device,
+            CNNBaseline, os.path.join(ckpt_dir, "cnn_baseline_best.pt"), model_device,
             num_channels=num_channels, window_samples=window_samples,
             out_channels=cnn_cfg["out_channels"], kernel_size=cnn_cfg["kernel_size"],
             dropout=cnn_cfg["dropout"],
         )
     if selected_model in ("all", "cnn_lstm"):
+        model_device = get_model_device("cnn_lstm", base_device)
         models["cnn_lstm"] = load_model(
-            CNNLSTM, os.path.join(ckpt_dir, "cnn_lstm_best.pt"), device,
+            CNNLSTM, os.path.join(ckpt_dir, "cnn_lstm_best.pt"), model_device,
             num_channels=num_channels, window_samples=window_samples,
             out_channels=lstm_cfg["out_channels"], kernel_size=lstm_cfg["kernel_size"],
             lstm_hidden=lstm_cfg["lstm_hidden"], lstm_layers=lstm_cfg["lstm_layers"],
             bidirectional=lstm_cfg["bidirectional"], dropout=lstm_cfg["dropout"],
         )
     if selected_model in ("all", "cnn_gru"):
+        model_device = get_model_device("cnn_gru", base_device)
         models["cnn_gru"] = load_model(
-            CNNGRU, os.path.join(ckpt_dir, "cnn_gru_best.pt"), device,
+            CNNGRU, os.path.join(ckpt_dir, "cnn_gru_best.pt"), model_device,
             num_channels=num_channels, window_samples=window_samples,
             out_channels=gru_cfg["out_channels"], kernel_size=gru_cfg["kernel_size"],
             gru_hidden=gru_cfg["gru_hidden"], gru_layers=gru_cfg["gru_layers"],
             bidirectional=gru_cfg["bidirectional"], dropout=gru_cfg["dropout"],
         )
     if selected_model in ("all", "tcn"):
+        model_device = get_model_device("tcn", base_device)
         models["tcn"] = load_model(
-            TCNModel, os.path.join(ckpt_dir, "tcn_best.pt"), device,
+            TCNModel, os.path.join(ckpt_dir, "tcn_best.pt"), model_device,
             num_channels=num_channels, window_samples=window_samples,
             num_block_channels=tcn_cfg["num_channels"], kernel_size=tcn_cfg["kernel_size"],
             dropout=tcn_cfg["dropout"],
@@ -150,11 +166,12 @@ def main(selected_model: str = "all"):
     all_results = {}
 
     for model_name, model in models.items():
+        model_device = next(model.parameters()).device
         print(f"\n{'─'*60}")
-        print(f"Evaluating: {model_name.upper()}  |  threshold: {threshold}")
+        print(f"Evaluating: {model_name.upper()}  |  threshold: {threshold}  |  device: {model_device}")
 
         results, all_probs, all_labels, all_preds = evaluate_model(
-            model, test_loader, device, threshold=threshold
+            model, test_loader, model_device, threshold=threshold
         )
         all_results[model_name] = results
         print_results_table(results, model_name)

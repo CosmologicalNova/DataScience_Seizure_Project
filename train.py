@@ -26,7 +26,7 @@ import yaml
 import torch
 import numpy as np
 
-from src.data.dataset import get_dataloaders, load_pos_weight
+from src.data.dataset import get_dataloaders
 from src.models.cnn_baseline import CNNBaseline
 from src.models.cnn_lstm     import CNNLSTM
 from src.models.cnn_gru      import CNNGRU
@@ -46,6 +46,17 @@ def get_device():
         return torch.device("mps")
     else:
         return torch.device("cpu")
+
+
+def get_model_device(model_name: str, base_device: torch.device) -> torch.device:
+    """
+    Use MPS on Apple Silicon where it is stable, but keep recurrent models on CPU.
+    LSTM/GRU can be numerically unstable on some PyTorch+MPS combinations.
+    CUDA remains the preferred accelerator on Windows/Linux with NVIDIA GPUs.
+    """
+    if base_device.type == "mps" and model_name in {"cnn_lstm", "cnn_gru"}:
+        return torch.device("cpu")
+    return base_device
 
 
 def compute_pos_weight(train_loader, device):
@@ -80,13 +91,13 @@ def main(selected_model: str = "all"):
         config = yaml.safe_load(f)
 
     # ── Device ────────────────────────────────────────────────────────────────
-    device = get_device()
-    print(f"Using device: {device}")
+    base_device = get_device()
+    print(f"Using base device: {base_device}")
 
-    if device.type == "cuda":
+    if base_device.type == "cuda":
         print(f"GPU:  {torch.cuda.get_device_name(0)}")
         print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
-    elif device.type == "mps":
+    elif base_device.type == "mps":
         print("GPU: Apple Silicon (MPS)")
     else:
         print("GPU: None (running on CPU)")
@@ -98,7 +109,7 @@ def main(selected_model: str = "all"):
     # ── Data ──────────────────────────────────────────────────────────────────
     print("\nLoading data...")
     train_loader, val_loader, test_loader = get_dataloaders(config)
-    pos_weight = compute_pos_weight(train_loader, device)
+    pos_weight_value = compute_pos_weight(train_loader, torch.device("cpu")).cpu()
 
     # Save test split so evaluate.py always uses the identical test patients
     torch.save(test_loader, os.path.join(config["paths"]["checkpoints"],
@@ -112,8 +123,10 @@ def main(selected_model: str = "all"):
     # Model 1: CNN Baseline (ablation — no temporal modeling)
     # ══════════════════════════════════════════════════════════════════════════
     if selected_model in ("all", "cnn_baseline"):
+        model_device = get_model_device("cnn_baseline", base_device)
         print("\n" + "="*60)
         print("MODEL 1: CNN Baseline (Ablation — No Temporal Modeling)")
+        print(f"Device: {model_device}")
         print("="*60)
 
         cnn_cfg = config["cnn_baseline"]
@@ -124,16 +137,18 @@ def main(selected_model: str = "all"):
             kernel_size=cnn_cfg["kernel_size"],
             dropout=cnn_cfg["dropout"],
         )
-        cnn_trainer = Trainer(cnn, train_loader, val_loader, config, "cnn_baseline", device)
-        cnn_trainer.criterion.pos_weight = pos_weight
+        cnn_trainer = Trainer(cnn, train_loader, val_loader, config, "cnn_baseline", model_device)
+        cnn_trainer.criterion.pos_weight = pos_weight_value.to(model_device)
         cnn_trainer.train()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Model 2: CNN + LSTM (primary hypothesis model)
     # ══════════════════════════════════════════════════════════════════════════
     if selected_model in ("all", "cnn_lstm"):
+        model_device = get_model_device("cnn_lstm", base_device)
         print("\n" + "="*60)
         print("MODEL 2: CNN + LSTM (Primary Model)")
+        print(f"Device: {model_device}")
         print("="*60)
 
         lstm_cfg = config["cnn_lstm"]
@@ -147,16 +162,18 @@ def main(selected_model: str = "all"):
             bidirectional=lstm_cfg["bidirectional"],
             dropout=lstm_cfg["dropout"],
         )
-        lstm_trainer = Trainer(cnn_lstm, train_loader, val_loader, config, "cnn_lstm", device)
-        lstm_trainer.criterion.pos_weight = pos_weight
+        lstm_trainer = Trainer(cnn_lstm, train_loader, val_loader, config, "cnn_lstm", model_device)
+        lstm_trainer.criterion.pos_weight = pos_weight_value.to(model_device)
         lstm_trainer.train()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Model 3: CNN + GRU (faster LSTM variant)
     # ══════════════════════════════════════════════════════════════════════════
     if selected_model in ("all", "cnn_gru"):
+        model_device = get_model_device("cnn_gru", base_device)
         print("\n" + "="*60)
         print("MODEL 3: CNN + GRU (Faster LSTM Variant)")
+        print(f"Device: {model_device}")
         print("="*60)
 
         gru_cfg = config["cnn_gru"]
@@ -170,16 +187,18 @@ def main(selected_model: str = "all"):
             bidirectional=gru_cfg["bidirectional"],
             dropout=gru_cfg["dropout"],
         )
-        gru_trainer = Trainer(cnn_gru, train_loader, val_loader, config, "cnn_gru", device)
-        gru_trainer.criterion.pos_weight = pos_weight
+        gru_trainer = Trainer(cnn_gru, train_loader, val_loader, config, "cnn_gru", model_device)
+        gru_trainer.criterion.pos_weight = pos_weight_value.to(model_device)
         gru_trainer.train()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Model 4: TCN (parallel dilated convolutions)
     # ══════════════════════════════════════════════════════════════════════════
     if selected_model in ("all", "tcn"):
+        model_device = get_model_device("tcn", base_device)
         print("\n" + "="*60)
         print("MODEL 4: TCN (Temporal Convolutional Network)")
+        print(f"Device: {model_device}")
         print("="*60)
 
         tcn_cfg = config["tcn"]
@@ -190,8 +209,8 @@ def main(selected_model: str = "all"):
             kernel_size=tcn_cfg["kernel_size"],
             dropout=tcn_cfg["dropout"],
         )
-        tcn_trainer = Trainer(tcn, train_loader, val_loader, config, "tcn", device)
-        tcn_trainer.criterion.pos_weight = pos_weight
+        tcn_trainer = Trainer(tcn, train_loader, val_loader, config, "tcn", model_device)
+        tcn_trainer.criterion.pos_weight = pos_weight_value.to(model_device)
         tcn_trainer.train()
 
     print("\n" + "="*60)

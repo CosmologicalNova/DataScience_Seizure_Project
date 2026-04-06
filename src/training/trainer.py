@@ -26,6 +26,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+from contextlib import nullcontext
 from torch.amp import GradScaler, autocast
 from sklearn.metrics import f1_score, recall_score, roc_auc_score
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -107,6 +108,9 @@ class Trainer:
                  "val_f1", "val_recall", "val_roc_auc", "lr", "grad_norm"]
             )
 
+    def _autocast_context(self):
+        return autocast("cuda", enabled=True) if self.use_amp else nullcontext()
+
     # ── Training epoch ────────────────────────────────────────────────────────
 
     def _train_epoch(self) -> tuple[float, float]:
@@ -120,9 +124,15 @@ class Trainer:
 
             self.optimizer.zero_grad(set_to_none=True)
 
-            with autocast("cuda", enabled=self.use_amp):
+            with self._autocast_context():
                 logits = self.model(images).squeeze(1)
                 loss   = self.criterion(logits, labels)
+
+            if not torch.isfinite(loss):
+                raise ValueError(
+                    f"Non-finite training loss detected for {self.model_name}. "
+                    "This usually means exploding activations/gradients."
+                )
 
             if self.use_amp:
                 self.scaler.scale(loss).backward()
@@ -157,16 +167,28 @@ class Trainer:
 
         with torch.no_grad():
             for images, labels in self.val_loader:
+                labels_cpu = labels.numpy()
                 images = images.to(self.device, non_blocking=True)
                 labels = labels.to(self.device, non_blocking=True)
 
-                with autocast("cuda", enabled=self.use_amp):
+                with self._autocast_context():
                     logits = self.model(images).squeeze(1)
                     loss   = self.criterion(logits, labels)
 
+                if not torch.isfinite(loss):
+                    raise ValueError(
+                        f"Non-finite validation loss detected for {self.model_name}. "
+                        "Check learning rate, normalization, and class weighting."
+                    )
+                if not torch.isfinite(logits).all():
+                    raise ValueError(
+                        f"Non-finite validation logits detected for {self.model_name}. "
+                        "Model outputs contain NaN or Inf."
+                    )
+
                 total_loss += loss.item()
-                all_logits.append(logits.cpu().numpy())
-                all_labels.append(labels.cpu().numpy())
+                all_logits.append(logits.detach().float().cpu().numpy())
+                all_labels.append(labels_cpu)
 
         all_logits = np.concatenate(all_logits)
         all_labels = np.concatenate(all_labels)

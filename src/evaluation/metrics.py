@@ -37,10 +37,13 @@ def evaluate_model(
 
     with torch.no_grad():
         for images, labels in dataloader:
+            labels_cpu = labels.numpy()
             images = images.to(device, non_blocking=True)
             logits = model(images).squeeze(1)
-            all_logits.append(logits.cpu().numpy())
-            all_labels.append(labels.numpy())
+            if not torch.isfinite(logits).all():
+                raise ValueError("Model outputs contain NaN or Inf during evaluation.")
+            all_logits.append(logits.detach().float().cpu().numpy())
+            all_labels.append(labels_cpu)
 
     all_logits = np.concatenate(all_logits)
     all_labels = np.concatenate(all_labels)

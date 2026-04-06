@@ -92,13 +92,14 @@ def get_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
 
     bs = config["training"]["batch_size"]
     nw = config["training"]["num_workers"]
+    pin_memory = torch.cuda.is_available()
 
     train_loader = DataLoader(train_ds, batch_size=bs, shuffle=True,
-                              num_workers=nw, pin_memory=True, drop_last=True)
+                              num_workers=nw, pin_memory=pin_memory, drop_last=True)
     val_loader   = DataLoader(val_ds,   batch_size=bs, shuffle=False,
-                              num_workers=nw, pin_memory=True)
+                              num_workers=nw, pin_memory=pin_memory)
     test_loader  = DataLoader(test_ds,  batch_size=bs, shuffle=False,
-                              num_workers=nw, pin_memory=True)
+                              num_workers=nw, pin_memory=pin_memory)
 
     print(f"Train: {len(train_ds):,} windows  |  "
           f"Val: {len(val_ds):,}  |  Test: {len(test_ds):,}")
