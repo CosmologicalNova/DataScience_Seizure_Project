@@ -13,7 +13,7 @@ of temporal sequential modeling to seizure detection performance.
 
 **1. Create and activate the conda environment (Python 3.12 required)**
 ```bash
-conda create -n eeg python=3.12 -y
+conda create -n egg python=3.12 -y
 conda activate# EEG Seizure Detection — CNN · LSTM · GRU · TCN
 
 Group 3 | COSC 4377: Data Science II | University of Houston | Dr. Nouhad Rizk
@@ -29,8 +29,8 @@ of temporal sequential modeling to seizure detection performance.
 
 **1. Create and activate the conda environment (Python 3.12 required)**
 ```bash
-conda create -n eeg python=3.12 -y
-conda activate eeg
+conda create -n egg python=3.12 -y
+conda activate egg
 ```
 
 **2. Install PyTorch with CUDA (NVIDIA GPU)**
@@ -61,7 +61,7 @@ python src/data/preprocess.py --config configs/config.yaml
 ```
 
 > Every time you open VSCode, activate the environment first:
-> `conda activate eeg`
+> `conda activate egg`
 
 ---
 
