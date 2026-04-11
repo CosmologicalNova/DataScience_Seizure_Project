@@ -660,6 +660,18 @@ CHB-MIT Scalp EEG Database — PhysioNet (Open Access)
 
 https://physionet.org/content/chbmit/1.0.0/
 
+## Project Artifacts
+
+Large project artifacts are not tracked in GitHub due to size constraints.
+These are shared separately in the team folder:
+
+- `data/raw/`
+- `data/processed/`
+- `checkpoints/`
+- `outputs/`
+
+After cloning the repo, place those folders in the project root before running training or evaluation scripts.
+
 ## References
 
 - Goldberger et al. (2000) — CHB-MIT: https://physionet.org/content/chbmit/1.0.0/
