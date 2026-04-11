@@ -230,6 +230,30 @@ Our main merged split uses patients `1, 2, 3, 5`.
 
 These values show the severe class imbalance in seizure detection, especially for subjects like `chb04`. This is why the training scripts use threshold search and imbalance-aware losses or weighting.
 
+### Patient Dataset Summary Script
+
+Use `src/data/patient_dataset_summary.py` to print a quick summary of every cached training split inside `data/processed/windowed_splits/`.
+
+Run:
+
+```bash
+python3 -m src.data.patient_dataset_summary
+```
+
+What it does:
+
+- scans each patient or merged split folder inside `data/processed/windowed_splits/`
+- reads `train.pt`
+- prints:
+  `X shape`
+  `Windows`
+  `Positives`
+  `Negatives`
+  `Pos ratio`
+  `Pos weight`
+
+This is useful for checking class imbalance and confirming that cached split generation succeeded before training.
+
 ## Training
 
 Current multi-patient training scripts:
