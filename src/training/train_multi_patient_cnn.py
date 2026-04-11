@@ -190,7 +190,7 @@ def main():
     epochs = 10
     lr = 1e-3
 
-    base = Path("data/processed/windowed_splits/multi_patient_3")
+    base = Path("data/processed/windowed_splits/multi_patient_4")
 
     train_ds, train_loader = load_cached_split(base / "train.pt", batch_size, shuffle=True)
     val_ds, val_loader = load_cached_split(base / "val.pt", batch_size, shuffle=False)
@@ -270,9 +270,9 @@ def main():
             "val_metrics": val_metrics,
             "test_metrics": test_metrics,
         },
-        "checkpoints/multi_patient_3_cnn.pt",
+        "checkpoints/multi_patient_4_cnn.pt",
     )
-    print("\nSaved model + threshold to checkpoints/multi_patient_3_cnn.pt")
+    print("\nSaved model + threshold to checkpoints/multi_patient_4_cnn.pt")
 
 
 if __name__ == "__main__":
