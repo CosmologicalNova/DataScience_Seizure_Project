@@ -17,7 +17,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from src.models.simple_eeg_cnn import SimpleEEGCNN
+from src.models.cnn import SimpleEEGCNN
 
 print(f"Using certifi CA bundle at: {certifi.where()}")
 
