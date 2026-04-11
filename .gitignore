@@ -1,0 +1,55 @@
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local environment files
+.env
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Project outputs
+outputs/**
+results/**
+!outputs/.gitkeep
+!results/.gitkeep
+
+# Training artifacts
+checkpoints/*.pt
+checkpoints/*.pth
+checkpoints/*.ckpt
+!checkpoints/.gitkeep
+
+# Data artifacts
+data/processed/**/*.pt
+data/processed/**/*.npy
+data/processed/**/*.npz
+data/processed/**/*.csv
+!data/processed/.gitkeep
+
+# Logs
+*.log
+
+.runtime/
+data/raw/
+*.edf
